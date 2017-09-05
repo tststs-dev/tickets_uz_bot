@@ -37,6 +37,7 @@ class Request {
         curl_close($curl);
     }
 
+
     public function get_response_object() {
         $this->execute_request();
         return $this->response_object;

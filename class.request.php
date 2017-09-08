@@ -43,38 +43,10 @@ class Request {
         return $this->response_object;
     }
 
-    public function get_response_status_code(){
-        if(isset($this->response_status_code)) {
-            return $this->response_status_code;
-        }
+    public function get_response_status_code() {
+        if (isset($this->response_status_code)) return $this->response_status_code;
+
         else return 0;
     }
 }
 
-
-
-/*public static function get_data ($url, $request_fields, $is_post_request = false) {
-    $curl = curl_init();
-    //if request is POST
-    if($is_post_request) {
-        curl_setopt($curl,CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_POST, true);
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $request_fields);
-        //curl_setopt($curl,CURLOPT_PROXY,'http://192.168.0.105:4321');
-    }
-    //if request is GET
-    else {
-        curl_setopt($curl,CURLOPT_URL, $url . $request_fields);
-        //curl_setopt($curl,CURLOPT_PROXY,'http://192.168.0.105:4321');
-    }
-
-    curl_setopt($curl,CURLOPT_USERAGENT, self::USER_AGENT );
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-
-    $response_data["response_object"] = curl_exec($curl);
-    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    $response_data["response_code"] = $http_code;
-    curl_close ($curl);
-    print_r($response_data);
-    return $response_data;
-}*/

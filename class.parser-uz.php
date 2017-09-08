@@ -1,25 +1,31 @@
 <?php
 include "class.request.php";
 
-
-//Нужно получать id станции до поиска (из-за Харьков != Харьков-пасс и т.д)
 class Parser_UZ {
-    //const URL_UZ = "http://booking.uz.gov.ua/ru/";
 
+    //Получаем ID станции
+    public static function get_station_id ($station_name) {
+        //Составляем запрос
+        //В поле "term" передаем точное название станции
+        $station_req = new Request("http://booking.uz.gov.ua/ru/purchase/station/", "?term=" . $station_name);
+        $station_res = $station_req->get_response_object(); //получаем ответ
 
-    public static function get_stations ($response_json_data) {
-        $decoded_data = json_decode($response_json_data["response_object"], true);
-        $stations = array();
-
-        foreach ($decoded_data as $value) {
-            $stations[$value['title']] = $value['value']; // station id => station name
+        //при ошибке повторяем запрос
+        while ($station_req->get_response_status_code() == 400) {
+            $station_res = $station_req->get_response_object();
         }
 
-        return $stations;
+
+        foreach ($station_res as $station) {
+            if(mb_strtolower($station['title'], 'UTF-8') == mb_strtolower($station_name,'UTF-8' )) {
+                return $station['value']; //возвращаем ID
+            }
+            else return 0; //если станция не найдена, возвращаем 0
+        }
     }
 
-    public static function get_trains($response_obj, &$request_obj, $first_city_id, $second_city_id) {
-
+    public static function get_trains($response_obj, Request &$request_obj, $station_from_id, $station_till_id) {
+        //обрабатываем ошибки
         if($response_obj['value'] == "По заданному Вами направлению мест нет") {
             return "По заданному Вами направлению мест нет";
         }
@@ -27,92 +33,114 @@ class Parser_UZ {
             return "Введена неверная дата отправления";
         }
         elseif ($response_obj['value'] == "5") {
-            echo "\nPIDORASI SUKA BLEAT\n";
+            echo "\n5555\n";
             $response_data = $request_obj->get_response_object();
-            //$data = self::get_data($url,$post_data,true);
-            self::get_trains($response_data,$request_obj, $first_city_id, $second_city_id);
+            self::get_trains($response_data,$request_obj, $station_from_id, $station_till_id);
         }
-        else return self::train_handler($response_obj, $first_city_id, $second_city_id);
+        else return self::train_handler($response_obj, $station_from_id, $station_till_id); //получаем массив поездов по заданному направлению
 
     }
 
-    public static function get_lower_places ($trains_array) {
-
-        /*
-        foreach ($trains_array as $key => $value) {
-            $post_data = "station_id_from=" . $value['station_from'] . "&"
-            $test =  self::get_data("http://booking.uz.gov.ua/ru/purchase/coaches/",);
+    //Считаем количество нижних мест в вагонах типа Плацкарт и Купе
+    private static function set_lower_places(&$trains_array) {
+        foreach ($trains_array as &$train) {
+            foreach ((array)$train['place_class'] as $coach) {
+                //если тип вагонов Купе
+                if ($coach['type'] == 'К') {
+                    self::set_lower_places_by_type($coach['type'], $trains_array, $train);
+                }
+                //если тип вагонов Плацкарт
+                elseif ($coach['type'] == 'П') {
+                    self::set_lower_places_by_type($coach['type'], $trains_array, $train);
+                }
+                else continue;
+            }
         }
-      print_r($test);
-        */
     }
 
-    private static function train_handler ($response_data, $first_city_id, $second_city_id) {
+    private static function set_lower_places_by_type($coach_type, &$trains_array, &$train) {
+        $lower_places = 0; //количество нижних мест
+
+        //формируем запрос на получение доступных вагонов определенного типа в определенном поезде
+        $coaches_req = new Request("http://booking.uz.gov.ua/ru/purchase/coaches/",
+            "station_id_from=" . $trains_array['station_from_id'] .
+                      "&station_id_till=" . $trains_array['station_till_id'] .
+                      "&train=" . $train['train_number'] .
+                      "&coach_type=" . $coach_type .
+                      "&date_dep=" . $train['date_dep'],
+            true );
+
+        $coaches_res = $coaches_req->get_response_object(); //получаем в ответ массив доступных вагонов
+        //если ошибка - повторяем запрос
+        while (isset($coaches_res['error'])) {
+            echo "coaches 555\n";
+            $coaches_res = $coaches_req->get_response_object();
+        }
+
+        //перебираем в цикле все вагоны
+        foreach ((array)$coaches_res['coaches'] as $coach) {
+            //для каждого вагона - новый запрос
+            $coach_req = new Request("http://booking.uz.gov.ua/ru/purchase/coach/",
+                "station_id_from=" . $trains_array['station_from_id'] .
+                "&station_id_till=" . $trains_array['station_till_id'] .
+                "&train=" . $train['train_number'] .
+                "&coach_num=" . $coach['num'] .
+                "&coach_type=" . $coach['type'] .
+                "&date_dep=" . $train['date_dep'],
+                true
+            );
+            $coach_res = $coach_req->get_response_object(); //получаем в ответ вагон
+            //если ошибка - повторяем запрос
+            while (isset($coach_res['error'])) {
+                echo "coaches 555\n";
+                $coach_res = $coach_req->get_response_object();
+            }
+
+            //считаем количество нижних мест
+            foreach ($coach_res['value']['places'] as $place) {
+                foreach ($place as $value) {
+                    if ($value % 2 == 1) $lower_places++;
+                }
+            }
+        }
+        //записываем количество нижних мест для каждого поезда
+        if($coach_type == "К") {
+            $train['lower_places_coupe'] = $lower_places;
+        }
+        if($coach_type == "П") {
+            $train['lower_places_reserved_seat'] = $lower_places;
+        }
+    }
+
+
+    private static function train_handler ($response_data, $station_from_id, $station_till_id) {
         $trains = array();
         echo "=============================================================\n";
         foreach ($response_data['value'] as $value) {
             $coach_class = array();
             foreach ($value['types'] as $class_type) {
-                $coach_class[$class_type['id']] = $class_type['places'];
+                $coach_class[] = array(
+                    "type" => $class_type['id'],
+                    "places" => $class_type['places']
+                );
             }
-
             $trains[] = array(
-                "station_from" => $value['from']['station'],
-                "station_till" => $value['till']['station'],
-                "date_from"    => $value['from']['src_date'],
-                "date_till"    => $value['till']['src_date'],
-                "place_class"  => $coach_class,
-                "train_number" => $value['num']
+                "station_from"  => $value['from']['station'],
+                "station_till"  => $value['till']['station'],
+                "date_from"     => $value['from']['src_date'],
+                "date_till"     => $value['till']['src_date'],
+                "place_class"   => $coach_class,
+                "train_number"  => $value['num'],
+                "date_dep"      => $value['from']['date'],
+                "lower_places_coupe" => -1,
+                "lower_places_reserved_seat" => -1
             );
         }
-        $trains['station_from_id'] = $first_city_id;
-        $trains['station_till_id'] = $second_city_id;
-        // get_lower_places($trains);
-        return $trains;
-    }
+        $trains['station_from_id'] = $station_from_id;
+        $trains['station_till_id'] = $station_till_id;
 
-    public static function get_station_id ($station_name) {
-        //echo "123";
-        $station_req = new Request("http://booking.uz.gov.ua/ru/purchase/station/", "?term=" . $station_name);
-        $station_res = $station_req->get_response_object();
-        // print_r($station_res);
-
-        while ($station_req->get_response_status_code() == 400) {
-           // echo "\nEBAT CHETIRESTA SUKA\n";
-            $station_res = $station_req->get_response_object();
-        }
-        print_r($station_res);
-        foreach ($station_res as $value) {
-            //print_r(strtolower($value['title']));
-            if(mb_strtolower($value['title'], 'UTF-8') == mb_strtolower($station_name,'UTF-8' )) {
-                return $value['value'];
-            }
-            else return 0;
-        }
-    }
-
-
-    //РАЗБИТЬ НА ФУНКЦИИ
-    public static function set_station_id(&$trains_array) {
-        $param = "?term=" . $trains_array[0]['station_from'];
-        $station_id_req = self::get_data("http://booking.uz.gov.ua/ru/purchase/station/",$param);
-        while ($station_id_req["response_code"] == 400) {
-            echo "\n1345678\n";
-            $station_id_req = self::get_data("http://booking.uz.gov.ua/ru/purchase/station/",$param);
-        }
-        $station_id_req = json_decode($station_id_req["response_object"],true);
-        $station_id_req = $station_id_req[0]['value'];
-        $trains_array['station_from_id'] = $station_id_req;
-        $param = "?term=" . $trains_array[0]['station_till'];
-        $station_id_req = self::get_data("http://booking.uz.gov.ua/ru/purchase/station/", $param);
-        while ($station_id_req["response_code"] == 400) {
-            echo "\nHUI PIZDA\n";
-            $station_id_req = self::get_data("http://booking.uz.gov.ua/ru/purchase/station/",$param);
-        }
-        $station_id_req = json_decode($station_id_req["response_object"],true);
-        $station_id_req = $station_id_req[0]['value'];
-        $trains_array['station_id_till'] = $station_id_req;
-        print_r($trains_array);
+        self::set_lower_places($trains);
+        return $trains; //возвращаем массив поездов
     }
 
 

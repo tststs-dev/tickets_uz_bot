@@ -1,5 +1,6 @@
 <?php
 include "class.request.php";
+include "class.multi_request.php";
 
 class Parser_UZ {
 
@@ -7,8 +8,9 @@ class Parser_UZ {
     public static function get_station_id ($station_name) {
         //Составляем запрос
         //В поле "term" передаем точное название станции
-        $station_req = new Request("http://booking.uz.gov.ua/ru/purchase/station/", "?term=" . $station_name);
+        $station_req = new Request("http://booking.uz.gov.ua/ru/purchase/station/", "?term=" .  urlencode($station_name));
         $station_res = $station_req->get_response_object(); //получаем ответ
+        print_r($station_req);
 
         //при ошибке повторяем запрос
         while ($station_req->get_response_status_code() == 400) {
@@ -60,7 +62,7 @@ class Parser_UZ {
 
     private static function set_lower_places_by_type($coach_type, &$trains_array, &$train) {
         $lower_places = 0; //количество нижних мест
-
+        global $coach_req;
         //формируем запрос на получение доступных вагонов определенного типа в определенном поезде
         $coaches_req = new Request("http://booking.uz.gov.ua/ru/purchase/coaches/",
             "station_id_from=" . $trains_array['station_from_id'] .
@@ -77,10 +79,94 @@ class Parser_UZ {
             $coaches_res = $coaches_req->get_response_object();
         }
 
+        foreach ((array)$coaches_res['coaches'] as $i => $coach){
+            //print_r($coaches_res);
+            $coach_req[$i] = new Request('http://booking.uz.gov.ua/ru/purchase/coach/',
+                "station_id_from=" . $trains_array['station_from_id'] .
+                "&station_id_till=" . $trains_array['station_till_id'] .
+                "&train=" . $train['train_number'] .
+                "&coach_num=" . $coach['num'] .
+                "&coach_type=" . $coach['type'] .
+                "&date_dep=" . $train['date_dep'],
+                true
+            );
+        }
+        $coach_multi_req = new Multi_Request($coach_req);
+        $coach_multi_res = $coach_multi_req->get_response_objects();
+        print_r($coach_multi_res);
+
+        foreach ($coach_multi_res as $coach) {
+            foreach ($coach['value']['places'] as $place) {
+                foreach ($place as $value) {
+                    if ($value % 2 == 1) $lower_places++;
+                }
+            }
+        }
+
+        if($coach_type == "К") {
+            $train['lower_places_coupe'] = $lower_places;
+        }
+        if($coach_type == "П") {
+            $train['lower_places_reserved_seat'] = $lower_places;
+        }
+
+            /*$curl[$i] = curl_init();
+            curl_setopt($curl[$i],CURLOPT_URL, 'http://booking.uz.gov.ua/ru/purchase/coach/');
+            curl_setopt($curl[$i], CURLOPT_POST, true);
+            curl_setopt($curl[$i], CURLOPT_POSTFIELDS, "station_id_from=" . $trains_array['station_from_id'] .
+                "&station_id_till=" . $trains_array['station_till_id'] .
+                "&train=" . $train['train_number'] .
+                "&coach_num=" . $coach['num'] .
+                "&coach_type=" . $coach['type'] .
+                "&date_dep=" . $train['date_dep']);
+            curl_setopt($curl[$i], CURLOPT_RETURNTRANSFER, true);
+
+            $multi_curl = curl_multi_init();
+            curl_multi_add_handle($multi_curl, $curl[$i]);
+
+        }
+        $active = null;
+
+        do {
+            $mrc = curl_multi_exec( $multi_curl, $active);
+            print_r("MRC1 ". $mrc . "\n");
+           // print_r(CURLM_CALL_MULTI_PERFORM);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+
+        while ($active && $mrc == CURLM_OK) {
+
+            if (curl_multi_select($multi_curl) == -1) usleep(100);
+            do { $mrc = curl_multi_exec($multi_curl, $active);
+                }
+            while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        }
+        $res = curl_multi_getcontent($curl[0]);
+        $res = json_decode($res, true);
+        print_r( $res );*/
+
+            ////////////////////////////////////////////////////////////////////////////////////////////
+        /*foreach((array)$coaches_res['coaches'] as $i => $coach)
+        {
+            // Check for errors
+            $curlError = curl_error($curl[$i]);
+            if($curlError == "") {
+                $res[$i] = curl_multi_getcontent($curl[$i]);
+                print_r(curl_multi_getcontent($curl[$i]));
+            } else {
+                print "Curl error on handle $i: $curlError\n";
+            }
+            // Remove and close the handle
+            curl_multi_remove_handle($multi_curl, $curl[$i]);
+            curl_close($curl[$i]);
+        }*/
+        //print_r($res);
+
+       // print_r(json_decode($mrc), true);
+       // curl_multi_close($multi_curl);
         //перебираем в цикле все вагоны
-        foreach ((array)$coaches_res['coaches'] as $coach) {
+        /*foreach ((array)$coaches_res['coaches'] as $coach) {
             //для каждого вагона - новый запрос
-            $coach_req = new Request("http://booking.uz.gov.ua/ru/purchase/coach/",
+            $coach_req = new Request(http://booking.uz.gov.ua/ru/purchase/coach/,
                 "station_id_from=" . $trains_array['station_from_id'] .
                 "&station_id_till=" . $trains_array['station_till_id'] .
                 "&train=" . $train['train_number'] .
@@ -102,14 +188,14 @@ class Parser_UZ {
                     if ($value % 2 == 1) $lower_places++;
                 }
             }
-        }
+        }*/
         //записываем количество нижних мест для каждого поезда
-        if($coach_type == "К") {
+       /* if($coach_type == "К") {
             $train['lower_places_coupe'] = $lower_places;
         }
         if($coach_type == "П") {
             $train['lower_places_reserved_seat'] = $lower_places;
-        }
+        }*/
     }
 
 
@@ -138,8 +224,10 @@ class Parser_UZ {
         }
         $trains['station_from_id'] = $station_from_id;
         $trains['station_till_id'] = $station_till_id;
-
+       // $start = microtime(true);
         self::set_lower_places($trains);
+      //  $time = microtime(true) - $start;
+        //print_r("Lower: " . $time);
         return $trains; //возвращаем массив поездов
     }
 

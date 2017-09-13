@@ -21,14 +21,13 @@ class Multi_Request {
 
         do {
             $mrc = curl_multi_exec( $this->curl_multi, $active);
-            print_r("MRC1 ". $mrc . "\n");
-            // print_r(CURLM_CALL_MULTI_PERFORM);
-        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        }
+        while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {
-            echo "123\n";
             if (curl_multi_select($this->curl_multi) == -1) usleep(100);
-            do { $mrc = curl_multi_exec($this->curl_multi, $active);
+            do {
+                $mrc = curl_multi_exec($this->curl_multi, $active);
             }
             while ($mrc == CURLM_CALL_MULTI_PERFORM);
         }

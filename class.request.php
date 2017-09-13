@@ -25,7 +25,6 @@ class Request {
         }
         //if request is GET
         else {
-            print_r(urlencode($this->request_fields));
             curl_setopt($this->curl,CURLOPT_URL, $this->url .$this->request_fields);
             //curl_setopt($curl,CURLOPT_PROXY,'http://192.168.0.105:4321');
         }

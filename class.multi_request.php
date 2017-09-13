@@ -3,12 +3,11 @@
 class Multi_Request {
     private $curl_list = array();
     private $curl_multi;
-    //как передать массив Request объектов
+
     public function __construct(array $req_arr)  {
         foreach ($req_arr as $req) {
             $this->curl_list[] = $req->get_curl();
         }
-
     }
 
     private function execute_requests() {

@@ -3,10 +3,10 @@
 include('class.parser-uz.php');
 $start = microtime(true);
 
-$first_id = Parser_UZ::get_station_id("харьков");
-$second_id = Parser_UZ::get_station_id("киев");
+$first_id = Parser_UZ::get_station_id("мариуполь");
+$second_id = Parser_UZ::get_station_id("харьков");
 
-print_r($second_id);
+
 
 
 $search_req = new Request("http://booking.uz.gov.ua/ru/purchase/search/",

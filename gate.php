@@ -282,11 +282,17 @@ $bot->state_handler("7", $state, function () use ($bot, $update, $connect, $db_r
 
     $trains_info = ParserUZ::get_trains_info($db_response['station_from_id'],$db_response['station_till_id'], $date);
     $final_message = get_final_message($trains_info, $date);
-    $date_dep = "'" . $date . "'";
-    $id = $db_response['id'];
-    mysqli_query($connect,"UPDATE user_data SET date_dep=$date_dep  WHERE id=$id");
+    if($final_message == "invalid date") {
+        $bot->send_message($bot->get_chat_id($update), NEGATIVE_RED_CROSS_MARK_SMILE . " Введена неверная дата отправления! " .
+            "Снова попробуй ввести дату отправления в формате: день.месяц.\n  Например: 01.09");
+    }
+    else {
+        $date_dep = "'" . $date . "'";
+        $id = $db_response['id'];
+        mysqli_query($connect, "UPDATE user_data SET date_dep=$date_dep  WHERE id=$id");
 
-    $bot->send_message($bot->get_chat_id($update), $final_message, $after_search_keyboard);
+        $bot->send_message($bot->get_chat_id($update), $final_message, $after_search_keyboard);
+    }
 
 });
 

@@ -129,8 +129,7 @@ function get_final_message ($trains_info, $date) {
     }
 
     if ($trains_info  == "invalid date") {
-        return NEGATIVE_RED_CROSS_MARK_SMILE . " Введена неверная дата отправления! " .
-            "Снова попробуй ввести дату отправления в формате: день.месяц.\n  Например: 01.09";
+        return "invalid date";
     }
     elseif($trains_info == "no places") {
         return NEGATIVE_GREEN_CROSS_MARK_SMILE . " На " . $date . " поездов не найдено!\nВозможно, все билеты раскуплены или еще не появились";

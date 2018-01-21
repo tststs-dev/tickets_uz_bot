@@ -6,7 +6,7 @@ require_once dirname(__DIR__) . '/request/Request.php';
 class ParserUZ {
 
     public static function get_stations_list($city_name) {
-        $stations_req = new Request("https://booking.uz.gov.ua/ru/purchase/station/", "?term=" .  urlencode($city_name));
+        $stations_req = new Request("https://booking.uz.gov.ua/ru/train_search/station/", "?term=" .  urlencode($city_name));
         $stations_res = $stations_req->get_response_object();
         while ($stations_req->get_response_status_code() == 400) {
             $station_res = $stations_req->get_response_object();
@@ -23,7 +23,7 @@ class ParserUZ {
     public static function get_station_id ($station_name) {
         //Составляем запрос
         //В поле "term" передаем точное название станции
-        $station_req = new Request("https://booking.uz.gov.ua/ru/purchase/station/", "?term=" .  urlencode($station_name));
+        $station_req = new Request("https://booking.uz.gov.ua/ru/train_search/station/", "?term=" .  urlencode($station_name));
         $station_res = $station_req->get_response_object(); //получаем ответ
         print_r($station_req);
         //при ошибке повторяем запрос

@@ -7,10 +7,13 @@ $start = microtime(true);
 
 $first_id = ParserUZ::get_station_id("Киев");
 $second_id = ParserUZ::get_station_id("Харьков");
-
+$stations_req = new Request("https://booking.uz.gov.ua/ru/purchase/station/", "?term=" .  "Киев");
 var_dump($first_id);
 
 
+
+
+/*
 $search_req = new Request("http://booking.uz.gov.ua/ru/purchase/search/",
                      "station_id_from=" . $first_id . "&station_id_till=" . $second_id .
                               "&date_dep=16.10.2017",
@@ -29,7 +32,7 @@ $date4 = date("H:i:s", (int)strtotime("2017-10-17 01:00:00") - (int)strtotime("2
 print_r($date1);
 print_r("Main: " . $time);
 
-
+*/
 
 
 

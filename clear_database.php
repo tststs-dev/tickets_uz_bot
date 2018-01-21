@@ -10,7 +10,7 @@ $monitoring_list = mysqli_query($connect, "SELECT id, date_dep FROM user_data WH
 
 foreach ($monitoring_list as $monitoring) {
     $id = $monitoring['id'];
-    if(time() > strtotime($monitoring['date_dep'])) {
+    if(time() > (strtotime($monitoring['date_dep']) + 86400)) {
         print_r($id . "\n");
         mysqli_query($connect, "DELETE FROM user_data WHERE id=$id");
     }
